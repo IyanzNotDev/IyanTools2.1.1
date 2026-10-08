@@ -1,0 +1,1378 @@
+import blessed from "blessed";
+
+import { checkProvider } from "./src/modules/provider.js";
+import { checkNIK } from "./src/modules/nik.js";
+import { checkKodePos } from "./src/modules/kodepos.js";
+import { checkBreach } from "./src/modules/breach.js";
+import { scrapeWebsite } from "./src/modules/scraper.js";
+import {
+  createTempEmail,
+  checkTempEmail,
+} from "./src/modules/tempemail.js";
+import { searchPsychology } from "./src/modules/psychology.js";
+import { askAI } from "./src/modules/ai.js";
+
+const screen = blessed.screen({
+  smartCSR: true,
+  title: "IyanTools 2.1.1",
+});
+
+const menuItems = [
+  "Check Provider",
+  "Check NIK",
+  "Check Kode Pos",
+  "BreachGmail",
+  "Scrape Website",
+  "Temp Email",
+  "Anichi",
+  "Psychology Search",
+  "AI Assisten",
+  "History",
+  "Help",
+  "Exit",
+];
+
+const AI_MODELS = [
+  {
+    id: "xiaomi/mimo-v2.5",
+    name: "MiMo V2.5",
+    provider: "Xiaomi",
+  },
+  {
+    id: "xiaomi/mimo-v2-flash",
+    name: "MiMo V2 Flash",
+    provider: "Xiaomi",
+  },
+  {
+    id: "deepseek/deepseek-v4-flash",
+    name: "DeepSeek v4 Flash",
+    provider: "DeepSeek",
+  },
+  {
+    id: "google/gemini-2.5-flash-lite",
+    name: "Gemini 2.5 Flash Lite",
+    provider: "Google",
+  },
+  {
+    id: "google/gemma-4-26b-a4b-it",
+    name: "Gemma 4 26B",
+    provider: "Google",
+  },
+  {
+    id: "google/gemma-4-31b-it",
+    name: "Gemma 4 31B",
+    provider: "Google",
+  },
+  {
+    id: "openai/gpt-oss-120b",
+    name: "GPT OSS 120B",
+    provider: "OpenAI",
+  },
+  {
+    id: "openai/gpt-oss-20b",
+    name: "GPT OSS 20B",
+    provider: "OpenAI",
+  },
+  {
+    id: "z-ai/glm-4.7-flash",
+    name: "GLM 4.7 Flash",
+    provider: "Z.AI",
+  },
+  {
+    id: "ibm-granite/granite-4.1-8b",
+    name: "Granite 4.1 8B",
+    provider: "IBM",
+  },
+  {
+    id: "qwen/qwen3.6-35b-a3b",
+    name: "Qwen3.6 35B",
+    provider: "Qwen",
+  },
+];
+
+/* =========================
+   UI
+========================= */
+
+const header = blessed.box({
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: 5,
+  border: {
+    type: "line",
+  },
+  style: {
+    border: {
+      fg: "cyan",
+    },
+  },
+  tags: true,
+  padding: {
+    left: 1,
+    top: 1,
+  },
+  content:
+    "{bold} IyanTools 2.1.1{/bold}\n" +
+    "{gray-fg} Developer : IyanzNotDev{/gray-fg}",
+});
+
+const menu = blessed.list({
+  top: 5,
+  left: 0,
+  width: "32%",
+  height: "100%-5",
+  keys: true,
+  vi: true,
+  mouse: true,
+  border: {
+    type: "line",
+  },
+  style: {
+    border: {
+      fg: "cyan",
+    },
+    selected: {
+      fg: "black",
+      bg: "cyan",
+    },
+    item: {
+      fg: "white",
+    },
+  },
+  items: menuItems,
+  padding: {
+    left: 1,
+    right: 1,
+  },
+});
+
+const main = blessed.box({
+  top: 5,
+  left: "32%",
+  width: "68%",
+  height: "100%-5",
+  border: {
+    type: "line",
+  },
+  style: {
+    border: {
+      fg: "cyan",
+    },
+  },
+  tags: true,
+  padding: {
+    left: 2,
+    right: 2,
+    top: 1,
+    bottom: 1,
+  },
+  scrollable: true,
+  alwaysScroll: true,
+  keys: true,
+  mouse: true,
+});
+
+screen.append(header);
+screen.append(menu);
+screen.append(main);
+
+/* =========================
+   STATE
+========================= */
+
+let tempEmailSession = {
+  email: null,
+  messages: [],
+};
+
+let tempEmailInterval = null;
+let tempEmailActive = false;
+
+/* =========================
+   HOME
+========================= */
+
+function showHome() {
+  main.setContent(
+    `{bold}{cyan-fg}Developer :{/cyan-fg} IyanzNotDev{/bold}\n` +
+      `{bold}{cyan-fg}Version   :{/cyan-fg} 2.1.1{/bold}\n\n` +
+      `{cyan-fg}W E L C O M E{/cyan-fg}\n\n` +
+      `{bold}Welkom{/bold}\n\n` +
+      `{gray-fg}Multi-purpose CLI Toolkit{/gray-fg}`
+  );
+
+  menu.focus();
+  screen.render();
+}
+
+function showLoading(feature) {
+  main.setContent(
+    `{bold}{cyan-fg}${feature}{/cyan-fg}{/bold}\n\n` +
+      `{yellow-fg}Loading...{/yellow-fg}\n\n` +
+      `{gray-fg}Please wait{/gray-fg}`
+  );
+
+  screen.render();
+}
+
+function createInput(
+  label,
+  width = "60%",
+  height = 7
+) {
+  const box = blessed.textbox({
+    top: "center",
+    left: "center",
+    width,
+    height,
+    border: {
+      type: "line",
+    },
+    label,
+    inputOnFocus: true,
+    keys: true,
+    mouse: true,
+    style: {
+      border: {
+        fg: "cyan",
+      },
+      focus: {
+        border: {
+          fg: "cyan",
+        },
+      },
+    },
+    padding: {
+      left: 1,
+      right: 1,
+    },
+  });
+
+  screen.append(box);
+  box.focus();
+  screen.render();
+
+  return box;
+}
+
+function showResult(title, content) {
+  main.setContent(
+    `{bold}{cyan-fg}${title}{/cyan-fg}{/bold}\n\n` +
+      `${content}\n\n` +
+      `{gray-fg}Press Esc to return{/gray-fg}`
+  );
+
+  menu.focus();
+  screen.render();
+}
+
+/* =========================
+   CHECK PROVIDER
+========================= */
+
+function checkProviderUI() {
+  const box = createInput(
+    " Check Provider ",
+    "65%",
+    8
+  );
+
+  box.on("submit", async (value) => {
+    box.destroy();
+
+    const input = value.trim();
+
+    if (!input) {
+      showResult(
+        "Check Provider",
+        "{red-fg}Nomor tidak boleh kosong.{/red-fg}"
+      );
+      return;
+    }
+
+    showLoading("Check Provider");
+
+    try {
+      const result = checkProvider(input);
+
+      if (!result.valid) {
+        showResult(
+          "Check Provider",
+          `{red-fg}${result.message}{/red-fg}`
+        );
+        return;
+      }
+
+      showResult(
+        "Check Provider",
+        `Nomor    : ${result.number}\n` +
+          `Prefix   : ${result.prefix}\n` +
+          `Provider : {cyan-fg}${result.provider}{/cyan-fg}\n\n` +
+          `{gray-fg}${result.message}{/gray-fg}`
+      );
+    } catch (error) {
+      showResult(
+        "Check Provider",
+        `{red-fg}Error:{/red-fg} ${error.message}`
+      );
+    }
+  });
+
+  box.key("escape", () => {
+    box.destroy();
+    showHome();
+  });
+}
+
+/* =========================
+   NIK
+========================= */
+
+function checkNIKUI() {
+  const box = createInput(
+    " Check NIK ",
+    "65%",
+    8
+  );
+
+  box.on("submit", async (value) => {
+    box.destroy();
+
+    const input = value.trim();
+
+    if (!input) {
+      showResult(
+        "Check NIK",
+        "{red-fg}NIK tidak boleh kosong.{/red-fg}"
+      );
+      return;
+    }
+
+    showLoading("Check NIK");
+
+    try {
+      const result = checkNIK(input);
+
+      if (!result.valid) {
+        showResult(
+          "Check NIK",
+          `{red-fg}${result.message}{/red-fg}`
+        );
+        return;
+      }
+
+      showResult(
+        "Check NIK",
+        `NIK           : ${result.maskedNik}\n` +
+          `Kode Wilayah  : ${result.kodeWilayah}\n` +
+          `Jenis Kelamin : ${result.jenisKelamin}\n` +
+          `Tanggal Lahir : ${result.tanggalLahir}\n` +
+          `Nomor Urut    : ${result.nomorUrut}\n\n` +
+          `{gray-fg}Analisis dilakukan secara lokal berdasarkan struktur NIK.{/gray-fg}`
+      );
+    } catch (error) {
+      showResult(
+        "Check NIK",
+        `{red-fg}Error:{/red-fg} ${error.message}`
+      );
+    }
+  });
+
+  box.key("escape", () => {
+    box.destroy();
+    showHome();
+  });
+}
+
+/* =========================
+   KODE POS
+========================= */
+
+function checkKodePosUI() {
+  const box = createInput(
+    " Check Kode Pos ",
+    "65%",
+    8
+  );
+
+  box.on("submit", async (value) => {
+    box.destroy();
+
+    const input = value.trim();
+
+    if (!input) {
+      showResult(
+        "Check Kode Pos",
+        "{red-fg}Kode pos tidak boleh kosong.{/red-fg}"
+      );
+      return;
+    }
+
+    showLoading("Check Kode Pos");
+
+    try {
+      const result = await checkKodePos(input);
+
+      if (!result.valid) {
+        showResult(
+          "Check Kode Pos",
+          `{red-fg}${result.message}{/red-fg}`
+        );
+        return;
+      }
+
+      showResult(
+        "Check Kode Pos",
+        `Kode Pos : {cyan-fg}${result.kodepos}{/cyan-fg}\n\n` +
+          `${JSON.stringify(
+            result.data,
+            null,
+            2
+          )}`
+      );
+    } catch (error) {
+      showResult(
+        "Check Kode Pos",
+        `{red-fg}Error:{/red-fg} ${error.message}`
+      );
+    }
+  });
+
+  box.key("escape", () => {
+    box.destroy();
+    showHome();
+  });
+}
+
+/* =========================
+   BREACH
+========================= */
+
+function breachGmailUI() {
+  const box = createInput(
+    " BreachGmail ",
+    "65%",
+    8
+  );
+
+  box.on("submit", async (value) => {
+    box.destroy();
+
+    const email = value.trim();
+
+    if (!email) {
+      showResult(
+        "BreachGmail",
+        "{red-fg}Email tidak boleh kosong.{/red-fg}"
+      );
+      return;
+    }
+
+    showLoading("BreachGmail");
+
+    try {
+      const result = await checkBreach(email);
+
+      if (!result.valid) {
+        showResult(
+          "BreachGmail",
+          `{red-fg}${result.message}{/red-fg}`
+        );
+        return;
+      }
+
+      if (!result.found) {
+        showResult(
+          "BreachGmail",
+          `{green-fg}Tidak ditemukan breach pada database yang diperiksa.{/green-fg}\n\n` +
+            `Email : ${result.email}`
+        );
+        return;
+      }
+
+      let output =
+        `Email : ${result.email}\n\n` +
+        `{red-fg}Breach ditemukan: ${result.breaches.length}{/red-fg}\n\n`;
+
+      for (const breach of result.breaches) {
+        output += `• ${breach}\n`;
+      }
+
+      showResult(
+        "BreachGmail",
+        output
+      );
+    } catch (error) {
+      showResult(
+        "BreachGmail",
+        `{red-fg}Gagal menghubungi API.{/red-fg}\n\n${error.message}`
+      );
+    }
+  });
+
+  box.key("escape", () => {
+    box.destroy();
+    showHome();
+  });
+}
+
+/* =========================
+   SCRAPER
+========================= */
+
+function scrapeWebsiteUI() {
+  const box = createInput(
+    " Scrape Website ",
+    "70%",
+    8
+  );
+
+  box.on("submit", async (value) => {
+    box.destroy();
+
+    const input = value.trim();
+
+    if (!input) {
+      showResult(
+        "Scrape Website",
+        "{red-fg}URL tidak boleh kosong.{/red-fg}"
+      );
+      return;
+    }
+
+    showLoading("Scrape Website");
+
+    try {
+      const result =
+        await scrapeWebsite(input);
+
+      let output =
+        `Target  : ${result.target}\n` +
+        `Status  : ${result.status}\n` +
+        `Content : ${result.contentType}\n\n`;
+
+      output +=
+        `{cyan-fg}Emails{/cyan-fg}\n`;
+
+      output += result.emails.length
+        ? result.emails
+            .map(
+              (item) => `• ${item}`
+            )
+            .join("\n")
+        : "Tidak ditemukan.";
+
+      output +=
+        `\n\n{cyan-fg}Phones{/cyan-fg}\n`;
+
+      output += result.phones.length
+        ? result.phones
+            .map(
+              (item) => `• ${item}`
+            )
+            .join("\n")
+        : "Tidak ditemukan.";
+
+      output +=
+        `\n\n{cyan-fg}API Endpoints{/cyan-fg}\n`;
+
+      output += result.endpoints.length
+        ? result.endpoints
+            .map(
+              (item) => `• ${item}`
+            )
+            .join("\n")
+        : "Tidak ditemukan.";
+
+      output +=
+        `\n\n{cyan-fg}Ports{/cyan-fg}\n`;
+
+      output += result.ports.length
+        ? result.ports
+            .map(
+              (item) => `• ${item}`
+            )
+            .join("\n")
+        : "Tidak ditemukan.";
+
+      showResult(
+        "Scrape Website",
+        output
+      );
+    } catch (error) {
+      showResult(
+        "Scrape Website",
+        `{red-fg}Gagal melakukan scraping.{/red-fg}\n\n${error.message}`
+      );
+    }
+  });
+
+  box.key("escape", () => {
+    box.destroy();
+    showHome();
+  });
+}
+
+/* =========================
+   TEMP EMAIL
+========================= */
+
+async function createTempEmailSession() {
+  const result =
+    await createTempEmail();
+
+  if (!result?.status) {
+    let errorMessage =
+      "Gagal membuat email sementara.";
+
+    if (typeof result?.result === "string") {
+      errorMessage = result.result;
+    } else if (result?.result) {
+      errorMessage = JSON.stringify(
+        result.result
+      );
+    }
+
+    throw new Error(errorMessage);
+  }
+
+  tempEmailSession.email =
+    result.email;
+
+  tempEmailSession.messages = [];
+
+  return result;
+}
+
+function extractMessageContent(msg) {
+  if (!msg || typeof msg !== "object") {
+    return "";
+  }
+
+  const fields = [
+    "content",
+    "text_body",
+    "textBody",
+    "body",
+    "message",
+    "text",
+    "body_text",
+    "plain_text",
+    "plainText",
+    "html_body",
+    "htmlBody",
+    "body_html",
+    "bodyHtml",
+  ];
+
+  for (const field of fields) {
+    const value = msg[field];
+
+    if (
+      typeof value === "string" &&
+      value.trim()
+    ) {
+      return value.trim();
+    }
+  }
+
+  return "";
+}
+
+function formatTempMessages(messages) {
+  if (!messages.length) {
+    return "{gray-fg}Inbox masih kosong.{/gray-fg}";
+  }
+
+  let output = "";
+
+  messages.forEach((msg, index) => {
+    const from =
+      msg.from ||
+      msg.sender ||
+      msg.sender_email ||
+      msg.senderEmail ||
+      "Unknown";
+
+    const subject =
+      msg.subject ||
+      msg.title ||
+      "No Subject";
+
+    const content =
+      extractMessageContent(msg) ||
+      "No Content";
+
+    output +=
+      `{bold}[ ${index + 1} ]{/bold}\n` +
+      `{cyan-fg}From    :{/cyan-fg} ${from}\n` +
+      `{cyan-fg}Subject :{/cyan-fg} ${subject}\n` +
+      `{cyan-fg}Content :{/cyan-fg} ${content}\n\n` +
+      `────────────────────────\n\n`;
+  });
+
+  return output.trim();
+}
+
+function renderTempEmail(
+  notification = ""
+) {
+  if (!tempEmailSession.email) {
+    return;
+  }
+
+  main.setContent(
+    `{bold}{cyan-fg}Temp Email{/cyan-fg}{/bold}\n\n` +
+      `Email : {cyan-fg}${tempEmailSession.email}{/cyan-fg}\n\n` +
+      `${
+        notification
+          ? `${notification}\n\n`
+          : ""
+      }` +
+      `{cyan-fg}Inbox{/cyan-fg}\n\n` +
+      `${formatTempMessages(
+        tempEmailSession.messages
+      )}\n\n` +
+      `{white-fg}R = Refresh\n` +
+      `N = New Email\n` +
+      `Esc = Back{/white-fg}`
+  );
+
+  main.focus();
+  screen.render();
+}
+
+async function refreshTempEmail(
+  showNotification = false
+) {
+  if (!tempEmailSession.email) {
+    return;
+  }
+
+  try {
+    const result =
+      await checkTempEmail(
+        tempEmailSession.email
+      );
+
+    if (!result?.status) {
+      return;
+    }
+
+    const messages =
+      Array.isArray(result.result)
+        ? result.result
+        : [];
+
+    const oldCount =
+      tempEmailSession.messages.length;
+
+    tempEmailSession.messages =
+      messages;
+
+    if (
+      showNotification &&
+      messages.length > oldCount
+    ) {
+      renderTempEmail(
+        "{green-fg}New message received!{/green-fg}"
+      );
+    } else if (showNotification) {
+      renderTempEmail(
+        "{gray-fg}Inbox berhasil diperbarui.{/gray-fg}"
+      );
+    }
+  } catch (error) {
+    if (showNotification) {
+      renderTempEmail(
+        `{red-fg}Refresh gagal: ${error.message}{/red-fg}`
+      );
+    }
+  }
+}
+
+function startTempEmailPolling() {
+  if (tempEmailInterval) {
+    clearInterval(
+      tempEmailInterval
+    );
+  }
+
+  tempEmailActive = true;
+
+  tempEmailInterval =
+    setInterval(
+      async () => {
+        if (
+          !tempEmailActive ||
+          !tempEmailSession.email
+        ) {
+          return;
+        }
+
+        await refreshTempEmail(true);
+      },
+      5000
+    );
+}
+
+function stopTempEmailPolling() {
+  tempEmailActive = false;
+
+  if (tempEmailInterval) {
+    clearInterval(
+      tempEmailInterval
+    );
+
+    tempEmailInterval = null;
+  }
+}
+
+async function tempEmailUI() {
+  if (tempEmailSession.email) {
+    renderTempEmail();
+    startTempEmailPolling();
+    return;
+  }
+
+  showLoading("Temp Email");
+
+  try {
+    await createTempEmailSession();
+
+    renderTempEmail(
+      "{green-fg}Email berhasil dibuat.{/green-fg}"
+    );
+
+    startTempEmailPolling();
+  } catch (error) {
+    showResult(
+      "Temp Email",
+      `{red-fg}${error.message}{/red-fg}`
+    );
+  }
+}
+
+main.key("r", async () => {
+  if (!tempEmailActive) {
+    return;
+  }
+
+  main.setContent(
+    `{bold}{cyan-fg}Temp Email{/cyan-fg}{/bold}\n\n` +
+      `{yellow-fg}Refreshing inbox...{/yellow-fg}`
+  );
+
+  screen.render();
+
+  await refreshTempEmail(true);
+});
+
+main.key("n", async () => {
+  if (!tempEmailActive) {
+    return;
+  }
+
+  try {
+    main.setContent(
+      `{bold}{cyan-fg}Temp Email{/cyan-fg}{/bold}\n\n` +
+        `{yellow-fg}Membuat email baru...{/yellow-fg}`
+    );
+
+    screen.render();
+
+    await createTempEmailSession();
+
+    renderTempEmail(
+      "{green-fg}Email baru berhasil dibuat.{/green-fg}"
+    );
+
+    startTempEmailPolling();
+  } catch (error) {
+    renderTempEmail(
+      `{red-fg}${error.message}{/red-fg}`
+    );
+  }
+});
+
+/* =========================
+   ANICHI
+========================= */
+
+function anichiUI() {
+  const box = createInput(
+    " Anichi ",
+    "70%",
+    8
+  );
+
+  box.on("submit", async (value) => {
+    box.destroy();
+
+    const query = value.trim();
+
+    if (!query) {
+      showResult(
+        "Anichi",
+        "{red-fg}Masukkan judul anime atau command.{/red-fg}"
+      );
+      return;
+    }
+
+    showLoading("Anichi");
+
+    try {
+      const url =
+        `https://anichi.to/filter?keyword=` +
+        encodeURIComponent(query);
+
+      showResult(
+        "Anichi",
+        `Search : ${query}\n\n` +
+          `{cyan-fg}URL:{/cyan-fg}\n${url}`
+      );
+    } catch (error) {
+      showResult(
+        "Anichi",
+        `{red-fg}Gagal memproses pencarian.{/red-fg}\n\n${error.message}`
+      );
+    }
+  });
+
+  box.key("escape", () => {
+    box.destroy();
+    showHome();
+  });
+}
+
+/* =========================
+   PSYCHOLOGY
+========================= */
+
+function psychologyUI() {
+  const box = createInput(
+    " Psychology Search ",
+    "70%",
+    8
+  );
+
+  box.on("submit", async (value) => {
+    box.destroy();
+
+    const term = value.trim();
+
+    if (!term) {
+      showResult(
+        "Psychology Search",
+        "{red-fg}Istilah tidak boleh kosong.{/red-fg}"
+      );
+      return;
+    }
+
+    showLoading(
+      "Psychology Search"
+    );
+
+    try {
+      const data =
+        await searchPsychology(term);
+
+      if (!data.success) {
+        showResult(
+          "Psychology Search",
+          `{red-fg}${data.message}{/red-fg}`
+        );
+        return;
+      }
+
+      let output =
+        `Term   : {cyan-fg}${data.term}{/cyan-fg}\n` +
+        `Source : ${
+          data.source ||
+          "Wiktionary"
+        }\n\n`;
+
+      for (
+        const item of data.results.slice(
+          0,
+          10
+        )
+      ) {
+        output +=
+          `{bold}${
+            item.language || ""
+          }{/bold}` +
+          `${
+            item.partOfSpeech
+              ? ` - ${item.partOfSpeech}`
+              : ""
+          }\n`;
+
+        if (item.word) {
+          output +=
+            `Word : ${item.word}\n`;
+        }
+
+        output +=
+          `${item.definition}\n`;
+
+        if (
+          item.examples?.length
+        ) {
+          output +=
+            `Example:\n` +
+            item.examples
+              .map(
+                (example) =>
+                  `  • ${example}`
+              )
+              .join("\n") +
+            "\n";
+        }
+
+        output +=
+          `────────────────────────\n`;
+      }
+
+      output +=
+        `\n{gray-fg}${
+          data.url || ""
+        }{/gray-fg}`;
+
+      showResult(
+        "Psychology Search",
+        output
+      );
+    } catch (error) {
+      showResult(
+        "Psychology Search",
+        `{red-fg}Gagal mencari istilah.{/red-fg}\n\n${error.message}`
+      );
+    }
+  });
+
+  box.key("escape", () => {
+    box.destroy();
+    showHome();
+  });
+}
+
+/* =========================
+   AI
+========================= */
+
+function selectAIModelUI() {
+  const modelList =
+    blessed.list({
+      top: "center",
+      left: "center",
+      width: "72%",
+      height: "75%",
+      keys: true,
+      vi: true,
+      mouse: true,
+      border: {
+        type: "line",
+      },
+      label: " AI Model ",
+      style: {
+        border: {
+          fg: "cyan",
+        },
+        selected: {
+          fg: "black",
+          bg: "cyan",
+        },
+        item: {
+          fg: "white",
+        },
+      },
+      items: AI_MODELS.map(
+        (model) =>
+          `${model.name} - ${model.provider}`
+      ),
+      padding: {
+        left: 1,
+        right: 1,
+      },
+    });
+
+  screen.append(modelList);
+  modelList.focus();
+  screen.render();
+
+  modelList.on(
+    "select",
+    (_, index) => {
+      const selectedModel =
+        AI_MODELS[index];
+
+      modelList.destroy();
+
+      aiPromptUI(
+        selectedModel
+      );
+    }
+  );
+
+  modelList.key(
+    "escape",
+    () => {
+      modelList.destroy();
+      showHome();
+    }
+  );
+}
+
+function aiPromptUI(model) {
+  const box = createInput(
+    ` ${model.name} `,
+    "75%",
+    10
+  );
+
+  box.on("submit", async (value) => {
+    box.destroy();
+
+    const question =
+      value.trim();
+
+    if (!question) {
+      showResult(
+        "AI Assisten",
+        "{red-fg}Pesan tidak boleh kosong.{/red-fg}"
+      );
+      return;
+    }
+
+    showLoading(
+      `AI - ${model.name}`
+    );
+
+    try {
+      const answer =
+        await askAI(
+          question,
+          model.id
+        );
+
+      showResult(
+        "AI Assisten",
+        `Model    : {cyan-fg}${model.name}{/cyan-fg}\n` +
+          `Provider : ${model.provider}\n\n` +
+          `{cyan-fg}Q:{/cyan-fg} ${question}\n\n` +
+          `{green-fg}AI:{/green-fg}\n${answer}`
+      );
+    } catch (error) {
+      showResult(
+        "AI Assisten",
+        `{red-fg}Gagal menghubungi API.{/red-fg}\n\n${error.message}`
+      );
+    }
+  });
+
+  box.key(
+    "escape",
+    () => {
+      box.destroy();
+      selectAIModelUI();
+    }
+  );
+}
+
+/* =========================
+   HISTORY
+========================= */
+
+function showHistory() {
+  showResult(
+    "History",
+    "{gray-fg}History belum tersedia.{/gray-fg}"
+  );
+}
+
+/* =========================
+   HELP
+========================= */
+
+function showHelp() {
+  showResult(
+    "Help",
+    `{cyan-fg}Navigation{/cyan-fg}\n` +
+      `↑ ↓ / j k  Navigate\n` +
+      `Enter      Select\n` +
+      `Esc        Back\n` +
+      `Q          Exit\n\n` +
+      `{cyan-fg}Features{/cyan-fg}\n` +
+      `Check Provider  : Deteksi provider berdasarkan prefix.\n` +
+      `Check NIK       : Analisis struktur NIK lokal.\n` +
+      `Check Kode Pos  : Cek informasi kode pos.\n` +
+      `BreachGmail     : Cek email pada database breach.\n` +
+      `Scrape Website  : Ambil informasi publik dari halaman.\n` +
+      `Temp Email      : Membuat dan memantau inbox email sementara.\n` +
+      `Anichi          : Pencarian anime.\n` +
+      `Psychology      : Cari istilah psikologi.\n` +
+      `AI Assisten     : Pilih model AI lalu kirim pesan.`
+  );
+}
+
+/* =========================
+   MENU
+========================= */
+
+menu.on(
+  "select",
+  (_, index) => {
+    switch (index) {
+      case 0:
+        checkProviderUI();
+        break;
+
+      case 1:
+        checkNIKUI();
+        break;
+
+      case 2:
+        checkKodePosUI();
+        break;
+
+      case 3:
+        breachGmailUI();
+        break;
+
+      case 4:
+        scrapeWebsiteUI();
+        break;
+
+      case 5:
+        tempEmailUI();
+        break;
+
+      case 6:
+        anichiUI();
+        break;
+
+      case 7:
+        psychologyUI();
+        break;
+
+      case 8:
+        selectAIModelUI();
+        break;
+
+      case 9:
+        showHistory();
+        break;
+
+      case 10:
+        showHelp();
+        break;
+
+      case 11:
+        stopTempEmailPolling();
+        process.exit(0);
+        break;
+    }
+  }
+);
+
+/* =========================
+   EXIT
+========================= */
+
+menu.key(
+  "escape",
+  () => {
+    showHome();
+  }
+);
+
+screen.key(
+  ["q", "C-c"],
+  () => {
+    stopTempEmailPolling();
+    process.exit(0);
+  }
+);
+
+screen.key(
+  "escape",
+  () => {
+    if (tempEmailActive) {
+      stopTempEmailPolling();
+      showHome();
+      return;
+    }
+
+    showHome();
+  }
+);
+
+/* =========================
+   LOADING PAGE
+========================= */
+
+function loadingPage() {
+  const loading = blessed.box({
+    top: "center",
+    left: "center",
+    width: "60%",
+    height: 9,
+    border: {
+      type: "line",
+    },
+    style: {
+      border: {
+        fg: "cyan",
+      },
+    },
+    tags: true,
+    align: "center",
+    valign: "middle",
+  });
+
+  screen.append(loading);
+
+  const frames = [
+    "Verifikasi ID",
+    "Verifikasi ID.",
+    "Verifikasi ID..",
+    "Verifikasi ID...",
+  ];
+
+  let index = 0;
+
+  loading.setContent(
+    `{cyan-fg}{bold}IyanTools 2.1.1{/bold}{/cyan-fg}\n\n` +
+      `{white-fg}${frames[index]}{/white-fg}`
+  );
+
+  screen.render();
+
+  const interval = setInterval(() => {
+    index++;
+
+    if (index >= frames.length) {
+      index = 0;
+    }
+
+    loading.setContent(
+      `{cyan-fg}{bold}IyanTools 2.1.1{/bold}{/cyan-fg}\n\n` +
+        `{white-fg}${frames[index]}{/white-fg}`
+    );
+
+    screen.render();
+  }, 300);
+
+  setTimeout(() => {
+    clearInterval(interval);
+
+    loading.destroy();
+
+    menu.focus();
+    showHome();
+  }, 2000);
+}
+
+loadingPage();

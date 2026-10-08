@@ -1,0 +1,60 @@
+{
+  "name": "iyantools",
+  "version": "2.1.1",
+  "description": "IyanTools CLI Toolkit",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.20.0",
+    "blessed": "^0.1.81",
+    "cheerio": "^1.2.0",
+    "form-data": "^4.0.6",
+    "tiktok-live-connector": "^2.5.0",
+
+    "chalk": "^5.6.2",
+    "ora": "^8.2.0",
+    "inquirer": "^12.9.6",
+    "boxen": "^8.0.1",
+    "cli-table3": "^0.6.5",
+    "figlet": "^1.9.2",
+
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "cookie-parser": "^1.4.7",
+
+    "uuid": "^13.0.0",
+    "nanoid": "^5.1.5",
+    "dayjs": "^1.11.18",
+
+    "adm-zip": "^0.5.16",
+    "archiver": "^7.0.1",
+    "extract-zip": "^2.0.1",
+    "tar": "^7.5.1",
+
+    "mime-types": "^3.0.1",
+    "open": "^10.2.0",
+    "glob": "^11.0.3",
+
+    "cheerio": "^1.2.0",
+    "jsdom": "^27.0.0",
+
+    "mysql2": "^3.15.1",
+    "sqlite3": "^5.1.7",
+
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^3.0.2",
+
+    "yaml": "^2.8.1",
+    "js-yaml": "^4.1.0",
+
+    "socket.io": "^4.8.1",
+    "ws": "^8.18.3",
+
+    "semver": "^7.7.3",
+    "lodash": "^4.17.21"
+  }
+}
